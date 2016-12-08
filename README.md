@@ -1,1 +1,1 @@
-# oauth_service
+# oauth-service
