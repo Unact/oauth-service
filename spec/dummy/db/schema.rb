@@ -22,4 +22,6 @@ ActiveRecord::Schema.define(version: 20161201120127) do
     t.datetime "updated_at",           null: false
   end
 
+  add_index "users", ["access_token"], name: "index_users_on_access_token", unique: true
+
 end

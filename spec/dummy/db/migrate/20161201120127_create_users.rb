@@ -7,6 +7,8 @@ class CreateUsers < ActiveRecord::Migration
       t.date   :access_token_expires
 
       t.timestamps null: false
+
+      t.index :access_token, unique: true
     end
   end
 end

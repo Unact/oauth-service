@@ -1,33 +1,21 @@
 require 'active_support/concern'
+require 'securerandom'
 
 module OauthService
   module Controller
     extend ActiveSupport::Concern
+    MAX_USER_UPDATE_FAILS = 100
 
     def callback
-      provider = OauthService::Providers.by_name(params[:provider_name])
-      user_info = provider ? provider.user_info(request.base_url, params[:code]).symbolize_keys : nil
+      provider = OauthService.providers[params[:provider_name].to_sym]
+      @user_info = provider ? provider.user_info(request.base_url, params[:code]).symbolize_keys : {:error => 'invalid_request'}
 
-      before_callback user_info
+      before_callback
 
-      if user_info && user_info[:error].nil?
-        @user = OauthService.user_model.find_by_email(user_info[:email])
-        if @user
-          session[:user_name] = user_info[:name]
-          session[:user_email] = user_info[:email]
-          session[:access_token] = generate_api_code
+      login_user
 
-          @user.update(
-            :access_token => session[:access_token],
-            :access_token_expires => Date.today + OauthService.token_expire
-          )
-        else
-          user_info = {:error => 'invalid_request'}
-        end
-      end
-
-      after_callback user_info
-      render_callback user_info
+      after_callback
+      render_callback
     end
 
     def logout
@@ -59,9 +47,40 @@ module OauthService
     end
 
     protected
-      def generate_api_code
-        uuid = SecureRandom.uuid
-        OauthService.user_model.find_by_access_token(uuid).nil? ? uuid : generate_api_code
+      def login_user
+        if @user_info && @user_info[:error].nil?
+          @user = OauthService.user_model.find_by_email(@user_info[:email])
+          if @user
+            session[:user_name] = @user[:name]
+            session[:user_email] = @user[:email]
+            @user_update_fails = 0
+            update_user_access_token
+          else
+            @user_info = {:error => 'invalid_request'}
+          end
+        end
+      end
+
+      def update_user_access_token
+        session[:access_token] = generate_access_token
+
+        @user.update(
+          :access_token => session[:access_token],
+          :access_token_expires => Date.today + OauthService.token_expire
+        )
+      rescue ActiveRecord::RecordNotUnique
+        @user_update_fails += 1
+        if @user_update_fails != MAX_USER_UPDATE_FAILS
+          update_user_access_token
+        else
+          @user.reload
+          session[:access_token] = nil
+          @user_info = {:error => 'invalid_request'}
+        end
+      end
+
+      def generate_access_token
+        SecureRandom.uuid
       end
 
       def process_access_token access_token
@@ -101,14 +120,14 @@ module OauthService
         message
       end
 
-      def render_callback user_info
+      def render_callback
         redirect_uri = URI.parse(session[:redirect_uri])
 
-        unless user_info[:error]
+        unless @user_info[:error]
           session[:redirect_uri] = nil
           uri_params = {access_token: @user.access_token}
         else
-          uri_params = {error: user_info[:error]}
+          uri_params = {error: @user_info[:error]}
           session.clear
         end
         redirect_uri.query = URI.encode_www_form(uri_params)
@@ -116,10 +135,10 @@ module OauthService
         redirect_to redirect_uri.to_s
       end
 
-      def before_callback user_info
+      def before_callback
       end
 
-      def after_callback user_info
+      def after_callback
       end
 
   end

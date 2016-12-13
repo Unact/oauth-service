@@ -11,7 +11,7 @@
                     <%= image_tag(OauthService.login_logo) %>
                 </a>
                 <ul>
-                    <% OauthService::Providers.list.each do |provider| %>
+                    <% OauthService.providers.values.each do |provider| %>
                         <li>
                             <a href=<%=provider.auth_uri(@base_url)%>>
                                 <button name="<%=provider.name%>">

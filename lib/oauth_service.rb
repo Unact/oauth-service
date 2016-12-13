@@ -1,9 +1,7 @@
 require "oauth_service/provider"
-require "oauth_service/providers"
 require "oauth_service/providers/google"
 require "oauth_service/providers/yandex"
 require "oauth_service/engine"
-require "securerandom"
 require "rails"
 
 module OauthService
@@ -19,26 +17,10 @@ module OauthService
   mattr_accessor :redirect_uri
   @@redirect_uri = "/login/"
 
-  # Oauth providers to use for Authorization
-  # Defaults to [OauthService::Providers::Yandex, OauthService::Providers::Google]
-  mattr_accessor :available_providers
-  @@available_providers = [OauthService::Providers::Yandex, OauthService::Providers::Google]
-
-  # Keys used by Oauth service
-  # Write in this format:
-  # {
-  #   :provider_name_downcased => {
-  #     :auth_url => ...,
-  #     :client_id => ...,
-  #     :client_secret => ...,
-  #     :info_url => ...,
-  #     :scopes => ...,
-  #     :token_url => ...
-  #   }
-  # }
+  # Providers to use
   # Defaults to {}
-  mattr_accessor :providers_keys
-  @@providers_keys = {}
+  mattr_accessor :providers
+  @@providers = {}
 
   # Defaults to "User"
   mattr_accessor :user_model_name
@@ -61,5 +43,25 @@ module OauthService
 
   def self.user_model
     self.user_model_name.constantize
+  end
+
+  def self.add_provider provider_name, provider_class
+    provider_configuration = OauthService::ProviderConfiguration.new
+    yield provider_configuration
+
+    self.providers[provider_name] = provider_class.new(
+      provider_name.to_s,
+      provider_configuration.auth_url,
+      provider_configuration.client_id,
+      provider_configuration.client_secret,
+      provider_configuration.info_url,
+      provider_configuration.scopes,
+      provider_configuration.token_url
+    )
+  end
+
+  class ProviderConfiguration
+    attr_accessor :name, :auth_url, :client_id, :client_secret,
+      :info_url, :scopes, :token_url
   end
 end
