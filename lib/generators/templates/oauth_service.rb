@@ -5,23 +5,16 @@ OauthService.setup do |config|
   # The relative route where user is sent after login
   # config.redirect_uri = "/login/"
 
-  # Oauth providers to use for Authorization
-  # config.available_providers = [OauthService::Providers::Yandex, OauthService::Providers::Google]
-
-  # Keys used by Oauth service
+  # Providers used by OauthService
   # Write in this format:
-  # {
-  #   :provider_name_downcased => {
-  #     :auth_url => ...,
-  #     :client_id => ...,
-  #     :client_secret => ...,
-  #     :info_url => ...,
-  #     :scopes => ...,
-  #     :token_url => ...
-  #   }
-  # }
-  #
-  # config.providers_keys = {}
+  # config.provider(:provider_name_downcased, provider_class) do |provider_config|
+  #   provider_config.auth_url = ...
+  #   provider_config.client_id = ...
+  #   provider_config.client_secret = ...
+  #   provider_config.info_url = ...
+  #   provider_config.scopes = ...
+  #   provider_config.token_url = ...
+  # end
 
   # Defaults to "User"
   # config.user_model_name = "User"
