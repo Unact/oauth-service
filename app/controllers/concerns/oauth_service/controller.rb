@@ -62,23 +62,20 @@ module OauthService
       end
 
       def update_user_access_token
-        retry_count = 0
-        begin
-          session[:access_token] = generate_access_token
+        retry_count ||= 0
+        session[:access_token] = generate_access_token
 
-          @user.update(
-            :access_token => session[:access_token],
-            :access_token_expires => Date.today + OauthService.token_expire
-          )
-        rescue ActiveRecord::RecordNotUnique
-          retry_count += 1
-          if retry_count != MAX_USER_UPDATE_FAILS
-            retry
-          else
-            @user.reload
-            session[:access_token] = nil
-            @user_info = {:error => 'invalid_request'}
-          end
+        @user.update(
+          :access_token => session[:access_token],
+          :access_token_expires => Date.today + OauthService.token_expire
+        )
+      rescue ActiveRecord::RecordNotUnique
+        if (retry_count += 1) != MAX_USER_UPDATE_FAILS
+          retry
+        else
+          @user.reload
+          session[:access_token] = nil
+          @user_info = {:error => 'invalid_request'}
         end
       end
 

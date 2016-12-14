@@ -138,7 +138,7 @@ RSpec.describe OauthService::BaseController, :type => :controller do
     end
   end
 
-  describe "login methods:" do
+  describe "login method:" do
     before :each do
       create_test_user
       @user_info = { :name => 'TestUser', :email => 'test_user@gmail.com' }
@@ -172,7 +172,7 @@ RSpec.describe OauthService::BaseController, :type => :controller do
         allow(controller).to receive(:generate_access_token).and_return(@test_access_token)
       end
 
-      it "updates token" do
+      it "has correct data" do
         controller.instance_variable_set(:@user, @test_user)
 
         controller.send(:update_user_access_token)
@@ -182,7 +182,7 @@ RSpec.describe OauthService::BaseController, :type => :controller do
         expect(@test_user.access_token_expires).to eq(Date.today + OauthService.token_expire)
       end
 
-      it "doesn't update token" do
+      it "has incorrect data" do
         @test_user.update(access_token: @test_access_token)
         test_user2 = User.create(
           name: 'test_user2',

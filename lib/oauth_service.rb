@@ -49,6 +49,13 @@ module OauthService
     provider_configuration = OauthService::ProviderConfiguration.new
     yield provider_configuration
 
+    provider_configuration_values = provider_configuration.instance_variables.collect do |var|
+      value = provider_configuration.instance_variable_get(var)
+      unless value
+        raise "OauthService initialization error #{provider_name} : #{var} not defined"
+      end
+    end
+
     self.providers[provider_name] = provider_class.new(
       provider_name.to_s,
       provider_configuration.auth_url,
@@ -63,5 +70,13 @@ module OauthService
   class ProviderConfiguration
     attr_accessor :name, :auth_url, :client_id, :client_secret,
       :info_url, :scopes, :token_url
+    def initialize
+      @auth_url = nil
+      @client_id = nil
+      @client_secret = nil
+      @info_url = nil
+      @scopes = nil
+      @token_url = nil
+    end
   end
 end
