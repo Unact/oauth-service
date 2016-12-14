@@ -68,6 +68,10 @@ RSpec.describe OauthService::BaseController, :type => :controller do
   end
 
   describe "GET info" do
+    before :each do
+      request.headers["HTTP_ACCEPT"] = "application/json"
+    end
+
     context "with access_token" do
       before :each do
         create_test_user_session
@@ -75,8 +79,14 @@ RSpec.describe OauthService::BaseController, :type => :controller do
 
       context "correct" do
         it "has a 200 status" do
+          resp = {
+            :user_name => @test_user.name,
+            :user_email => @test_user.email
+          }.to_json
+
           get :info, {:access_token => @test_user.access_token }
 
+          expect(response.body).to eq(resp)
           expect(response.status).to eq(200)
         end
       end
@@ -84,8 +94,14 @@ RSpec.describe OauthService::BaseController, :type => :controller do
       context "incorrect" do
         context "wrong token" do
           it "has a 401 status" do
+            resp = {
+              :error => 'Invalid Access Token',
+              :code => 'invalid_token'
+            }.to_json
+
             get :info, {:access_token => 'incorrect_token'}
 
+            expect(response.body).to eq(resp)
             expect(response.status).to eq(401)
           end
         end
@@ -94,8 +110,14 @@ RSpec.describe OauthService::BaseController, :type => :controller do
           it "has a 401 status" do
             @test_user.access_token_expires = Date.yesterday
             @test_user.save
+            resp =  {
+              :error => 'Expired Access Token',
+              :code => 'invalid_token'
+            }.to_json
+
             get :info, {:access_token => @test_user.access_token}
 
+            expect(response.body).to eq(resp)
             expect(response.status).to eq(401)
           end
         end
@@ -103,36 +125,45 @@ RSpec.describe OauthService::BaseController, :type => :controller do
     end
     context "without access_token" do
       it "has a 400 status" do
+        resp = {
+          :error => 'Access Token not sent',
+          :code => 'invalid_request'
+        }.to_json
+
         get :info
+
+        expect(response.body).to eq(resp)
         expect(response.status).to eq(400)
       end
     end
   end
 
-  describe "login_user" do
+  describe "login methods:" do
     before :each do
       create_test_user
       @user_info = { :name => 'TestUser', :email => 'test_user@gmail.com' }
       controller.instance_variable_set(:@user_info, @user_info)
     end
 
-    it "logs in" do
-      controller.send(:login_user)
+    context "login_user" do
+      it "logs in" do
+        controller.send(:login_user)
 
-      expect(controller.instance_variable_get(:@user_info)).to eq(@user_info)
-      expect(controller.instance_variable_get(:@user)).to eq(@test_user)
-      expect(session[:user_name]).to eq(@test_user.name)
-      expect(session[:user_email]).to eq(@test_user.email)
-    end
+        expect(controller.instance_variable_get(:@user_info)).to eq(@user_info)
+        expect(controller.instance_variable_get(:@user)).to eq(@test_user)
+        expect(session[:user_name]).to eq(@test_user.name)
+        expect(session[:user_email]).to eq(@test_user.email)
+      end
 
-    it "doesnt log in" do
-      @user_info = { :error => 'test_error'}
-      controller.instance_variable_set(:@user_info, @user_info)
+      it "doesn't log in" do
+        @user_info = { :error => 'test_error'}
+        controller.instance_variable_set(:@user_info, @user_info)
 
-      controller.send(:login_user)
+        controller.send(:login_user)
 
-      expect(controller.instance_variable_get(:@user)).to eq(nil)
-      expect(session.empty?).to eq(true)
+        expect(controller.instance_variable_get(:@user)).to eq(nil)
+        expect(session.empty?).to eq(true)
+      end
     end
 
     context "update_user_access_token" do
@@ -151,13 +182,12 @@ RSpec.describe OauthService::BaseController, :type => :controller do
         expect(@test_user.access_token_expires).to eq(Date.today + OauthService.token_expire)
       end
 
-      it "doesnt update token" do
+      it "doesn't update token" do
         @test_user.update(access_token: @test_access_token)
         test_user2 = User.create(
           name: 'test_user2',
           email: 'test_user2@gmail.com'
         )
-        controller.instance_variable_set(:@user_update_fails, 0)
         controller.instance_variable_set(:@user, test_user2)
 
         controller.send(:update_user_access_token)

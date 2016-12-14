@@ -62,20 +62,23 @@ module OauthService
       end
 
       def update_user_access_token
-        session[:access_token] = generate_access_token
+        retry_count = 0
+        begin
+          session[:access_token] = generate_access_token
 
-        @user.update(
-          :access_token => session[:access_token],
-          :access_token_expires => Date.today + OauthService.token_expire
-        )
-      rescue ActiveRecord::RecordNotUnique
-        @user_update_fails += 1
-        if @user_update_fails != MAX_USER_UPDATE_FAILS
-          update_user_access_token
-        else
-          @user.reload
-          session[:access_token] = nil
-          @user_info = {:error => 'invalid_request'}
+          @user.update(
+            :access_token => session[:access_token],
+            :access_token_expires => Date.today + OauthService.token_expire
+          )
+        rescue ActiveRecord::RecordNotUnique
+          retry_count += 1
+          if retry_count != MAX_USER_UPDATE_FAILS
+            retry
+          else
+            @user.reload
+            session[:access_token] = nil
+            @user_info = {:error => 'invalid_request'}
+          end
         end
       end
 
@@ -85,7 +88,6 @@ module OauthService
 
       def process_access_token access_token
         message = {
-          :data => {},
           :status => 200
         }
         if access_token
@@ -123,7 +125,7 @@ module OauthService
       def render_callback
         redirect_uri = URI.parse(session[:redirect_uri])
 
-        unless @user_info[:error]
+        if @user_info[:error].nil?
           session[:redirect_uri] = nil
           uri_params = {access_token: @user.access_token}
         else
