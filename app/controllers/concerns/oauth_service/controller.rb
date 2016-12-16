@@ -49,7 +49,7 @@ module OauthService
     protected
       def login_user
         if @user_info && @user_info[:error].nil?
-          @user = OauthService.user_model.find_by_email(@user_info[:email])
+          @user ||= OauthService.user_model.find_by_email(@user_info[:email])
           if @user
             session[:user_name] = @user[:name]
             session[:user_email] = @user[:email]
@@ -120,7 +120,7 @@ module OauthService
       end
 
       def render_callback
-        redirect_uri = URI.parse(session[:redirect_uri])
+        redirect_uri = URI.parse(session[:redirect_uri] || main_app.root_url)
 
         if @user_info[:error].nil?
           session[:redirect_uri] = nil
