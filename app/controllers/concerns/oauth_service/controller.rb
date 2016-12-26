@@ -86,7 +86,7 @@ module OauthService
 
     def info
       auth_header = request.headers["Authorization"]
-      access_token = auth_header ? auth_header.split("Oauth ")[-1] : nil
+      access_token = auth_header ? auth_header.split("Oauth ").last : nil
       oauth_access_token = OauthAccessToken.find_by_access_token(access_token)
 
       response = if oauth_access_token && access_token

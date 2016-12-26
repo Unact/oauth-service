@@ -14,7 +14,7 @@ RSpec.feature "the login process", :js => true do
 
     after :each do
       uri = URI.parse(page.current_url)
-      code = uri.query.split('code=')[-1]
+      code = uri.query.split('code=').last
       uri.query = uri.fragment = nil
       auth_code = OauthService::OauthAuthorizationCode.find_by_code(code)
 
