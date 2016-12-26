@@ -6,7 +6,7 @@ module OauthService
         headers = { "Authorization" => "OAuth #{token_result["access_token"]}" }
 
         info = self.send_request(uri, headers)
-        if info[:errors].nil?
+        if info[:error].nil?
           {
             "email" => info["default_email"],
             "id" => info["id"],
