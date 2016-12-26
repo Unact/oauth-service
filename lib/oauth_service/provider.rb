@@ -1,4 +1,17 @@
 module OauthService
+  class ProviderConfiguration
+    attr_accessor :name, :auth_url, :client_id, :client_secret,
+      :info_url, :scopes, :token_url
+    def initialize
+      @auth_url = nil
+      @client_id = nil
+      @client_secret = nil
+      @info_url = nil
+      @scopes = nil
+      @token_url = nil
+    end
+  end
+
   class Provider
     attr_reader :name, :auth_url, :client_id, :client_secret,
       :info_url, :scopes, :token_url
@@ -16,25 +29,26 @@ module OauthService
 
     def callback_uri request_url
       uri = URI.parse(request_url)
-      uri.path = OauthService.callback_uri + name.downcase
+      uri.path = OauthService.callback_uri + "callback/" + name.downcase
       uri.query = nil
 
       uri.to_s
     end
 
-    def auth_uri request_url
+    def auth_uri request_url, state = nil
       uri = URI.parse(auth_url)
-      uri.query = URI.encode_www_form(auth_params(request_url))
+      uri.query = URI.encode_www_form(auth_params(request_url, state))
 
       uri.to_s
     end
 
-    def auth_params request_url
+    def auth_params request_url, state
       {
         "client_id" => client_id,
         "redirect_uri" => callback_uri(request_url),
         "response_type" => "code",
-        "scope" => scopes
+        "scope" => scopes,
+        "state" => state
       }
     end
 
@@ -81,7 +95,7 @@ module OauthService
           unless res.is_a? Net::HTTPSuccess
             {
               :error => res_body["error"],
-              :status => res.code
+              :error_description => res_body["error_description"]
             }
           else
             res_body

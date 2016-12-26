@@ -13,7 +13,7 @@
                 <ul>
                     <% OauthService.providers.values.each do |provider| %>
                         <li>
-                            <a href=<%=provider.auth_uri(@base_url)%>>
+                            <a href=<%=provider.auth_uri(@base_url, @state)%>>
                                 <button name="<%=provider.name%>">
                                     Sign In with <%= provider.name.titleize %>
                                 </button>

@@ -1,27 +1,31 @@
 require 'helpers/spec_helper'
+require 'helpers/uri_params_helper'
 
 RSpec.feature "the login process", :js => true do
-  before :each do
-    @test_user = User.create(email: 'test@gmail.com')
-    visit '/login'
-  end
-
   context 'signs me in' do
+
+    def visit_login
+      visit "login?#{to_params_string(login_client_params(@oauth_client))}"
+    end
+
+    before :each do
+      @oauth_client = create(:oauth_client)
+    end
+
     after :each do
-      query = CGI.parse(URI.parse(current_url).query)
-      access_token = query["access_token"][0]
-      expect(access_token).to_not eq(nil)
-      expect(@test_user.access_token).to eq(nil)
-      expect(@test_user.access_token_expires).to eq(nil)
-      @test_user.reload
-      expect(@test_user.access_token).to eq(access_token)
-      expect(@test_user.access_token_expires).to eq(Date.today + OauthService.token_expire)
+      uri = URI.parse(page.current_url)
+      code = uri.query.split('code=')[-1]
+      uri.query = uri.fragment = nil
+      auth_code = OauthService::OauthAuthorizationCode.find_by_code(code)
+
+      expect(auth_code).to_not eq(nil)
+      expect(auth_code.oauth_client_id).to eq(@oauth_client.id)
+      expect(uri.to_s).to eq(@oauth_client.redirect_uri)
     end
 
     it "google" do
-      @test_user.email = ENV["GOOGLE_TEST_USER_LOGIN"]
-      @test_user.save
-
+      @oauth_user = create(:google_user)
+      visit_login
       click_button 'Sign In with Google'
       fill_in "Email", with: ENV["GOOGLE_TEST_USER_LOGIN"]
       click_on "next"
@@ -31,9 +35,8 @@ RSpec.feature "the login process", :js => true do
     end
 
     it "yandex" do
-      @test_user.email = ENV["YANDEX_TEST_USER_LOGIN"]
-      @test_user.save
-
+      @oauth_user = create(:yandex_user)
+      visit_login
       click_button 'Sign In with Yandex'
       fill_in "login", with: ENV["YANDEX_TEST_USER_LOGIN"]
       fill_in "passwd", with: ENV["YANDEX_TEST_USER_PASSWORD"]

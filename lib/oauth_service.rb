@@ -2,13 +2,16 @@ require "oauth_service/provider"
 require "oauth_service/providers/google"
 require "oauth_service/providers/yandex"
 require "oauth_service/engine"
+require "oauth_service/response"
+require "oauth_service/errors"
 require "rails"
 
 module OauthService
+  MAX_TOKEN_UPDATES = 100
   # The relative route where auth service callback is redirected.
-  # Defaults to "/callback".
+  # Defaults to "/".
   mattr_accessor :callback_uri
-  @@callback_uri = "/callback/"
+  @@callback_uri = "/"
 
   # The relative route where user is sent after login
   # if :redirect_uri parameter is not set.
@@ -22,13 +25,13 @@ module OauthService
   mattr_accessor :providers
   @@providers = {}
 
-  # Defaults to "User"
-  mattr_accessor :user_model_name
-  @@user_model_name = "User"
+  # User info can be accessed until login_date + access_token_valid_for
+  mattr_accessor :access_token_valid_for
+  @@access_token_valid_for = 30.day
 
-  # User info can be accessed until login_date + token_expire
-  mattr_accessor :token_expire
-  @@token_expire = 1.day
+  # Access token can be retrieved until login_date + code_valid_for
+  mattr_accessor :code_valid_for
+  @@code_valid_for = 1.hour
 
   # Logo for login page
   # Default to OauthService logo
@@ -41,15 +44,11 @@ module OauthService
     yield self
   end
 
-  def self.user_model
-    self.user_model_name.constantize
-  end
-
   def self.add_provider provider_name, provider_class
     provider_configuration = OauthService::ProviderConfiguration.new
     yield provider_configuration
 
-    provider_configuration_values = provider_configuration.instance_variables.collect do |var|
+    provider_configuration.instance_variables.collect do |var|
       value = provider_configuration.instance_variable_get(var)
       unless value
         raise "OauthService initialization error #{provider_name} : #{var} not defined"
@@ -67,16 +66,7 @@ module OauthService
     )
   end
 
-  class ProviderConfiguration
-    attr_accessor :name, :auth_url, :client_id, :client_secret,
-      :info_url, :scopes, :token_url
-    def initialize
-      @auth_url = nil
-      @client_id = nil
-      @client_secret = nil
-      @info_url = nil
-      @scopes = nil
-      @token_url = nil
-    end
+  def self.generate_token
+    SecureRandom.urlsafe_base64
   end
 end

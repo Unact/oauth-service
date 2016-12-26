@@ -13,15 +13,47 @@
 
 ActiveRecord::Schema.define(version: 20161201120127) do
 
-  create_table "users", force: :cascade do |t|
-    t.string   "name"
-    t.string   "email"
+  create_table "oauth_service_oauth_access_tokens", force: :cascade do |t|
+    t.integer  "oauth_user_id"
+    t.integer  "oauth_client_id"
     t.string   "access_token"
-    t.date     "access_token_expires"
-    t.datetime "created_at",           null: false
-    t.datetime "updated_at",           null: false
+    t.datetime "expires"
+    t.datetime "created_at",      null: false
+    t.datetime "updated_at",      null: false
   end
 
-  add_index "users", ["access_token"], name: "index_users_on_access_token", unique: true
+  add_index "oauth_service_oauth_access_tokens", ["access_token"], name: "index_oauth_service_oauth_access_tokens_on_access_token", unique: true
+
+  create_table "oauth_service_oauth_authorization_codes", force: :cascade do |t|
+    t.integer  "oauth_user_id"
+    t.integer  "oauth_client_id"
+    t.string   "code"
+    t.datetime "code_expires"
+    t.string   "refresh_token"
+    t.datetime "created_at",      null: false
+    t.datetime "updated_at",      null: false
+  end
+
+  add_index "oauth_service_oauth_authorization_codes", ["code"], name: "index_oauth_service_oauth_authorization_codes_on_code", unique: true
+  add_index "oauth_service_oauth_authorization_codes", ["refresh_token"], name: "index_oauth_service_oauth_authorization_codes_on_refresh_token", unique: true
+
+  create_table "oauth_service_oauth_clients", force: :cascade do |t|
+    t.string   "name"
+    t.string   "client_id"
+    t.string   "client_secret"
+    t.string   "redirect_uri"
+    t.datetime "created_at",    null: false
+    t.datetime "updated_at",    null: false
+  end
+
+  add_index "oauth_service_oauth_clients", ["client_id"], name: "index_oauth_service_oauth_clients_on_client_id", unique: true
+  add_index "oauth_service_oauth_clients", ["client_secret"], name: "index_oauth_service_oauth_clients_on_client_secret", unique: true
+
+  create_table "oauth_service_oauth_users", force: :cascade do |t|
+    t.string   "name"
+    t.string   "email"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
 
 end

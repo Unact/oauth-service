@@ -4,141 +4,171 @@ require 'securerandom'
 module OauthService
   module Controller
     extend ActiveSupport::Concern
-    MAX_USER_UPDATE_FAILS = 100
-
-    def callback
-      provider = OauthService.providers[params[:provider_name].to_sym]
-      @user_info = provider ? provider.user_info(request.base_url, params[:code]).symbolize_keys : {:error => 'invalid_request'}
-
-      before_callback
-
-      login_user
-
-      after_callback
-      render_callback
-    end
 
     def logout
-      OauthService.user_model.find_by_email(session[:user_email]).try(:update,
-        {
-          :access_token => nil,
-          :access_token_expires => nil
-        }
-      )
+      clear_user_session
 
-      session.clear
       redirect_to params[:redirect_uri] || root_url
     end
 
     def login
+      clear_user_session
+
       @base_url = request.base_url
-      session.clear
-      session[:redirect_uri] = params[:redirect_uri] || OauthService.redirect_uri
+      client = OauthClient.find_by({
+        :redirect_uri => params[:redirect_uri],
+        :client_id => params[:client_id]
+      })
+      @state = client && params[:response_type] == "code" ? client.client_id : nil
 
       render :template => 'oauth/login'
     end
 
-    def info
-      info = process_access_token params[:access_token]
-
-      respond_to do |format|
-        format.any(:json, :xml, :html) { render request.format.to_sym => info[:data], :status => info[:status] }
+    def callback
+      user_info = user_provider_info
+      if user_info.nil?
+        @oauth_error = Errors.invalid_request
+      elsif user_info[:errors].present?
+        @oauth_error = Errors.base(user_info, 400)
+        user_info = nil
       end
+
+      before_login_user user_info
+      login_user user_info
+      after_login_user user_info
+
+      create_client_code
+
+      redirect_after_login
+    end
+
+    def token
+      client = OauthClient.find_by({
+        client_id: params[:client_id],
+        client_secret: params[:client_secret],
+        redirect_uri: params[:redirect_uri]
+      })
+      unless client
+        response = Errors.invalid_client
+      end
+
+      oauth_authorization_code = OauthAuthorizationCode.
+        where(oauth_client_id: client.try(:id)).
+        find do |oauth_auth_code|
+          if params[:code]
+            oauth_auth_code.code == params[:code] && oauth_auth_code.code_expires > Time.now
+          elsif params[:refresh_token]
+            oauth_auth_code.refresh_token == params[:refresh_token]
+          end
+        end
+
+      if oauth_authorization_code
+        if oauth_access_token = OauthAccessToken.create_by_authorization_code(oauth_authorization_code)
+          response = Response.new({
+            access_token: oauth_access_token.access_token,
+            refresh_token: oauth_authorization_code.refresh_token
+          })
+        else
+          response = Errors.server_error
+        end
+      end
+
+      if response.nil?
+        response = Errors.invalid_code
+      end
+
+      if params[:grant_type] != 'authorization_code'
+        response = Errors.invalid_grant_type
+      end
+
+      render_response response
+    end
+
+    def info
+      auth_header = request.headers["Authorization"]
+      access_token = auth_header ? auth_header.split("Oauth ")[-1] : nil
+      oauth_access_token = OauthAccessToken.find_by_access_token(access_token)
+
+      response = if oauth_access_token && access_token
+        if oauth_access_token.expires > Time.now
+          Response.new({
+            :user_name => oauth_access_token.oauth_user.name,
+            :user_email => oauth_access_token.oauth_user.email
+          })
+        else
+          Errors.expired_token
+        end
+      else
+        Errors.invalid_token
+      end
+
+      unless access_token
+        response = Errors.invalid_request
+      end
+
+      render_response response
     end
 
     protected
-      def login_user
-        if @user_info && @user_info[:error].nil?
-          @user ||= OauthService.user_model.find_by_email(@user_info[:email])
-          if @user
-            session[:user_name] = @user[:name]
-            session[:user_email] = @user[:email]
-            @user_update_fails = 0
-            update_user_access_token
+      def clear_user_session
+        session[:user_name] = nil
+        session[:user_email] = nil
+      end
+
+      def render_response response
+        render :json => response.data, :status => response.status
+      end
+
+      def login_user user_info
+        unless @oauth_error
+          if @oauth_user ||= OauthUser.find_by_email(user_info[:email])
+            session[:user_name] = @oauth_user.name
+            session[:user_email] = @oauth_user.email
           else
-            @user_info = {:error => 'invalid_request'}
+            @oauth_error = Errors.invalid_user
           end
         end
       end
 
-      def update_user_access_token
-        retry_count ||= 0
-        session[:access_token] = generate_access_token
+      def redirect_after_login
+        uri = @oauth_client ? @oauth_client.redirect_uri : (OauthService.redirect_uri || root_url)
+        redirect_uri = URI.parse(uri)
 
-        @user.update(
-          :access_token => session[:access_token],
-          :access_token_expires => Date.today + OauthService.token_expire
-        )
-      rescue ActiveRecord::RecordNotUnique
-        if (retry_count += 1) != MAX_USER_UPDATE_FAILS
-          retry
-        else
-          @user.reload
-          session[:access_token] = nil
-          @user_info = {:error => 'invalid_request'}
-        end
-      end
-
-      def generate_access_token
-        SecureRandom.uuid
-      end
-
-      def process_access_token access_token
-        message = {
-          :status => 200
-        }
-        if access_token
-          user = OauthService.user_model.find_by_access_token(access_token)
-          if user
-            if user.access_token_expires > Time.now
-              message[:data] =  {
-                :user_name => user.name,
-                :user_email => user.email
-              }
-            else
-              message[:data] =  {
-                :error => 'Expired Access Token',
-                :code => 'invalid_token'
-              }
-              message[:status] = 401
-            end
-          else
-            message[:data] =  {
-              :error => 'Invalid Access Token',
-              :code => 'invalid_token'
-            }
-            message[:status] = 401
+        if @oauth_client
+          if @oauth_error.nil? && @oauth_auth_code
+            query = {code: @oauth_auth_code.code}
+          elsif @oauth_error
+            query = @oauth_error.data
           end
-        else
-          message[:data] = {
-            :error => 'Access Token not sent',
-            :code => 'invalid_request'
-          }
-          message[:status] = 400
-        end
-        message
-      end
 
-      def render_callback
-        redirect_uri = URI.parse(session[:redirect_uri] || main_app.root_url)
-
-        if @user_info[:error].nil?
-          session[:redirect_uri] = nil
-          uri_params = {access_token: @user.access_token}
-        else
-          uri_params = {error: @user_info[:error]}
-          session.clear
+          redirect_uri.query = URI.encode_www_form(query)
         end
-        redirect_uri.query = URI.encode_www_form(uri_params)
 
         redirect_to redirect_uri.to_s
       end
 
-      def before_callback
+      def before_login_user user_info
       end
 
-      def after_callback
+      def after_login_user user_info
       end
 
+      def create_client_code
+        @oauth_client = OauthClient.find_by_client_id(params[:state])
+        if @oauth_client && @oauth_error.nil?
+          @oauth_auth_code = OauthAuthorizationCode.create_by_client @oauth_client, @oauth_user
+        end
+      end
+
+      def user_provider_info
+        provider = OauthService.providers[params[:provider_name].to_sym]
+        user_info = nil
+
+        if provider
+          user_info = provider.user_info(request.base_url, params[:code]).symbolize_keys
+        end
+
+        user_info
+      end
   end
 end

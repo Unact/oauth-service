@@ -6,6 +6,8 @@ require 'factory_girl_rails'
 require "capybara/rails"
 require 'capybara/rspec'
 require 'support/database_cleaner'
+require 'support/factory_girl'
+require 'support/capybara'
 
 Rails.backtrace_cleaner.remove_silencers!
 
@@ -16,17 +18,4 @@ RSpec.configure do |config|
  config.mock_with :rspec
  config.infer_base_class_for_anonymous_controllers = false
  config.order = "random"
-end
-
-Capybara.register_driver :chrome do |app|
-  Capybara::Selenium::Driver.new(app, :browser => :chrome)
-end
-
-Capybara.javascript_driver = :chrome
-
-Capybara.configure do |config|
-  config.run_server = true
-  config.app_host = "http://localhost:3000"
-  config.server_port = 3000
-  config.default_max_wait_time = 180
 end

@@ -1,6 +1,6 @@
 OauthService.setup do |config|
   # The relative route where auth service callback is redirected.
-  # config.callback_uri = "/callback/"
+  # config.callback_uri = "/"
 
   # The relative route where user is sent after login
   # config.redirect_uri = "/login/"
@@ -16,12 +16,12 @@ OauthService.setup do |config|
   #   provider_config.token_url = ...
   # end
 
-  # Defaults to "User"
-  # config.user_model_name = "User"
-
   # Default OauthService logo
   # config.login_logo = "logo.png"
 
-  # User info can be accessed until login_date + token_expire
-  # config.token_expire = 1.day
+  # User info can be accessed until login_date + access_token_valid_for
+  # config.access_token_valid_for = 1.day
+
+  # Access token can be retrieved until login_date + code_valid_for
+  # config.code_valid_for = 1.hour
 end

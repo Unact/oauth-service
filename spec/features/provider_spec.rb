@@ -33,16 +33,17 @@ RSpec.describe OauthService::Provider do
 
     it "callback uri" do
       callback_uri = @provider.callback_uri(@host_name)
-      expect(callback_uri).to eq(@host_name + OauthService.callback_uri + @provider_name)
+      expect(callback_uri).to eq(@host_name + OauthService.callback_uri + 'callback/' + @provider_name)
     end
 
     it "auth params" do
-      auth_params = @provider.auth_params(@host_name)
+      auth_params = @provider.auth_params(@host_name, nil)
 
       expect(auth_params["client_id"]).to eq(@client_id)
       expect(auth_params["redirect_uri"]).to eq(@provider.callback_uri(@host_name))
       expect(auth_params["response_type"]).to eq("code")
       expect(auth_params["scope"]).to eq(@scopes)
+      expect(auth_params["state"]).to eq(nil)
     end
 
     it "token params" do
