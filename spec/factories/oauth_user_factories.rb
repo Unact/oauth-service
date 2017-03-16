@@ -16,4 +16,10 @@ FactoryGirl.define do
     name "Test Yandex"
     email  ENV["YANDEX_TEST_USER_LOGIN"]
   end
+
+  factory :mail_ru_user, class: OauthService::OauthUser do
+    id 4
+    name "Test MailRu"
+    email  ENV["MAIL_RU_TEST_USER_LOGIN"]
+  end
 end
