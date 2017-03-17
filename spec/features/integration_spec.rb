@@ -42,5 +42,14 @@ RSpec.feature "the login process", :js => true do
       fill_in "passwd", with: ENV["YANDEX_TEST_USER_PASSWORD"]
       click_button "Войти"
     end
+
+    it "mail_ru" do
+      @oauth_user = create(:mail_ru_user)
+      visit_login
+      click_button 'Sign In with Mail Ru'
+      fill_in "login", with: ENV["MAIL_RU_TEST_USER_LOGIN"]
+      fill_in "password", with: ENV["MAIL_RU_TEST_USER_PASSWORD"]
+      click_button "Log in and allow"
+    end
   end
 end

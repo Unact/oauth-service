@@ -1,6 +1,7 @@
 require "oauth_service/provider"
 require "oauth_service/providers/google"
 require "oauth_service/providers/yandex"
+require "oauth_service/providers/mail_ru"
 require "oauth_service/engine"
 require "oauth_service/response"
 require "oauth_service/errors"
@@ -48,22 +49,24 @@ module OauthService
     provider_configuration = OauthService::ProviderConfiguration.new
     yield provider_configuration
 
+    provider_can_be_created = true
     provider_configuration.instance_variables.collect do |var|
-      value = provider_configuration.instance_variable_get(var)
-      unless value
-        raise "OauthService initialization error #{provider_name} : #{var} not defined"
+      unless provider_configuration.instance_variable_get(var)
+        provider_can_be_created = false
       end
     end
 
-    self.providers[provider_name] = provider_class.new(
-      provider_name.to_s,
-      provider_configuration.auth_url,
-      provider_configuration.client_id,
-      provider_configuration.client_secret,
-      provider_configuration.info_url,
-      provider_configuration.scopes,
-      provider_configuration.token_url
-    )
+    if provider_can_be_created
+      self.providers[provider_name] = provider_class.new(
+        provider_name.to_s,
+        provider_configuration.auth_url,
+        provider_configuration.client_id,
+        provider_configuration.client_secret,
+        provider_configuration.info_url,
+        provider_configuration.scopes,
+        provider_configuration.token_url
+      )
+    end
   end
 
   def self.generate_token

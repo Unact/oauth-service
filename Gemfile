@@ -11,6 +11,7 @@ group :test do
   gem 'factory_girl_rails'
   gem 'selenium-webdriver'
   gem 'database_cleaner'
+  gem 'chromedriver-helper'
 end
 
 # Declare any dependencies that are still in development here instead of in
