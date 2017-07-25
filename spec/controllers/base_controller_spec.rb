@@ -1,7 +1,6 @@
-require "helpers/spec_helper"
-require "helpers/uri_params_helper"
+require "spec_helper"
 
-RSpec.describe OauthService::BaseController, :type => :controller do
+RSpec.describe OauthService::BaseController, type: :controller do
   routes { OauthService::Engine.routes }
 
   def json_response

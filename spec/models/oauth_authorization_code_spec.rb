@@ -1,4 +1,4 @@
-require "helpers/spec_helper"
+require "spec_helper"
 
 RSpec.describe OauthService::OauthAuthorizationCode, :type => :model do
   context 'create_by_client' do

@@ -1,7 +1,5 @@
-require 'helpers/spec_helper'
-require 'helpers/uri_params_helper'
-
-RSpec.feature "the login process", :js => true do
+require 'spec_helper'
+RSpec.feature "the login process", js: true do
   context 'signs me in' do
 
     def visit_login
@@ -13,6 +11,8 @@ RSpec.feature "the login process", :js => true do
     end
 
     after :each do
+      # Подождем чтобы сервисы нас перенаправили обратно по ссылке
+      sleep(2)
       uri = URI.parse(page.current_url)
       code = uri.query.split('code=').last
       uri.query = uri.fragment = nil
@@ -27,11 +27,11 @@ RSpec.feature "the login process", :js => true do
       @oauth_user = create(:google_user)
       visit_login
       click_button 'Sign In with Google'
-      fill_in "Email", with: ENV["GOOGLE_TEST_USER_LOGIN"]
-      click_on "next"
-      fill_in "Passwd", with: ENV["GOOGLE_TEST_USER_PASSWORD"]
-      click_on "signIn"
-      click_on "submit_approve_access"
+      fill_in "identifier", with: ENV["GOOGLE_TEST_USER_LOGIN"]
+      # У гугла это span, а не button
+      find_node_by_text('Next').click
+      fill_in "password", with: ENV["GOOGLE_TEST_USER_PASSWORD"]
+      find_node_by_text('Next').click
     end
 
     it "yandex" do

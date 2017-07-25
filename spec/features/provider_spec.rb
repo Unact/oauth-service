@@ -1,4 +1,4 @@
-require 'helpers/spec_helper'
+require 'spec_helper'
 
 RSpec.describe OauthService::Provider do
   before :each do
