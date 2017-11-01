@@ -8,7 +8,6 @@ Gem::Specification.new do |s|
   s.name        = "oauth_service"
   s.version     = OauthService::VERSION
   s.authors     = ["Unact"]
-  s.email       = ["y.barkovskij@gmail.com"]
   s.homepage    = "https://github.com/Unact/oauth-service"
   s.summary     = "Authentication service."
   s.description = "Uses existing oauth services to authenticate"
